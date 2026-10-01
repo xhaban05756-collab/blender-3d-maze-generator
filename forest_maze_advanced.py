@@ -1,9 +1,9 @@
 bl_info = {
     "name": "Forest Maze Generator Advanced",
     "author": "Your Name",
-    "version": (3, 1, 0),
+    "version": (3, 2, 0),
     "blender": (3, 0, 0),
-    "location": "View3D > Sidebar > Forest Maze Advanced",
+    "location": "View3D > Sidebar > Forest Maze",
     "description": "Procedural forest maze with collision, fog, and multiple tree variants",
     "category": "Add Mesh",
 }
@@ -33,6 +33,14 @@ def get_or_create_collection(name):
         collection = bpy.data.collections.new(name)
         bpy.context.scene.collection.children.link(collection)
     return collection
+
+
+def link_object_to_collection(obj, collection_name):
+    """Properly link object to collection and remove from others."""
+    collection = get_or_create_collection(collection_name)
+    for c in obj.users_collection:
+        c.objects.unlink(obj)
+    collection.objects.link(obj)
 
 
 def clear_generated_objects():
@@ -280,7 +288,7 @@ def create_wall_mesh(grid, cell_size, wall_height):
     bm.free()
 
     obj = bpy.data.objects.new("MazeWalls", mesh)
-    get_or_create_collection(COLLECTION_NAME).objects.link(obj)
+    link_object_to_collection(obj, COLLECTION_NAME)
     assign_material(obj, get_wall_material())
     return obj
 
@@ -310,7 +318,7 @@ def create_floor_mesh(grid, cell_size):
     bm.free()
 
     obj = bpy.data.objects.new("MazeFloor", mesh)
-    get_or_create_collection(COLLECTION_NAME).objects.link(obj)
+    link_object_to_collection(obj, COLLECTION_NAME)
     assign_material(obj, get_floor_material())
     return obj
 
@@ -321,7 +329,7 @@ def create_ground_plane(width, height, cell_size):
     obj.name = "MazeGround"
     obj.scale = ((width * cell_size) / 2.0, (height * cell_size) / 2.0, 1.0)
     assign_material(obj, get_grass_material())
-    get_or_create_collection(COLLECTION_NAME).objects.link(obj)
+    link_object_to_collection(obj, COLLECTION_NAME)
     return obj
 
 
@@ -385,7 +393,7 @@ def create_collision_mesh(grid, cell_size):
     bm.free()
 
     obj = bpy.data.objects.new("MazeCollision", mesh)
-    get_or_create_collection(COLLISION_COLLECTION).objects.link(obj)
+    link_object_to_collection(obj, COLLISION_COLLECTION)
     obj.hide_render = True
     return obj
 
@@ -395,7 +403,6 @@ def create_collision_mesh(grid, cell_size):
 # ============================================================
 
 def create_fog_volume(width, height, cell_size, fog_density=0.15):
-    # Create a large translucent cube volume to mimic fog.
     bpy.ops.mesh.primitive_cube_add(location=(0, 0, 4.0))
     fog = bpy.context.object
     fog.name = "ForestFogVolume"
@@ -406,15 +413,12 @@ def create_fog_volume(width, height, cell_size, fog_density=0.15):
     fog.data.materials.append(mat)
     fog.hide_render = False
 
-    # Set to display as transparent-ish fog in viewport.
     if fog.data.materials:
         material = fog.data.materials[0]
         material.blend_method = 'BLEND'
         material.shadow_method = 'HASHED'
-        material.use_screen_refraction = True
-        material.refraction_depth = 0.5
 
-    get_or_create_collection(FOG_COLLECTION).objects.link(fog)
+    link_object_to_collection(fog, FOG_COLLECTION)
     return fog
 
 
@@ -433,7 +437,7 @@ def make_pine_tree(location, trunk_height, trunk_radius, foliage_radius):
     trunk.name = "PineTrunk"
     trunk.data.materials.clear()
     trunk.data.materials.append(create_material("PineBark", (0.27, 0.20, 0.12), 0.9, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(trunk)
+    link_object_to_collection(trunk, TREE_COLLECTION)
 
     for i, scale in enumerate([1.6, 1.2, 0.9]):
         bpy.ops.mesh.primitive_cone_add(
@@ -447,7 +451,7 @@ def make_pine_tree(location, trunk_height, trunk_radius, foliage_radius):
         cone.name = f"PineCone_{i}"
         cone.data.materials.clear()
         cone.data.materials.append(create_material(f"PineFoliage_{i}", (0.10, 0.35, 0.14), 0.7, 0.0))
-        get_or_create_collection(TREE_COLLECTION).objects.link(cone)
+        link_object_to_collection(cone, TREE_COLLECTION)
 
     return trunk
 
@@ -463,19 +467,19 @@ def make_oak_tree(location, trunk_height, trunk_radius, foliage_radius):
     trunk.name = "OakTrunk"
     trunk.data.materials.clear()
     trunk.data.materials.append(create_material("OakBark", (0.24, 0.17, 0.10), 0.8, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(trunk)
+    link_object_to_collection(trunk, TREE_COLLECTION)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=foliage_radius, location=(location[0], location[1], location[2] + trunk_height + foliage_radius * 0.8))
     sphere = bpy.context.object
     sphere.data.materials.clear()
     sphere.data.materials.append(create_material("OakFoliage", (0.18, 0.42, 0.18), 0.6, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(sphere)
+    link_object_to_collection(sphere, TREE_COLLECTION)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=foliage_radius * 0.7, location=(location[0] + foliage_radius * 0.5, location[1], location[2] + trunk_height + foliage_radius * 0.4))
     sphere2 = bpy.context.object
     sphere2.data.materials.clear()
     sphere2.data.materials.append(create_material("OakFoliage2", (0.18, 0.42, 0.18), 0.6, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(sphere2)
+    link_object_to_collection(sphere2, TREE_COLLECTION)
 
     return trunk
 
@@ -491,13 +495,13 @@ def make_birch_tree(location, trunk_height, trunk_radius, foliage_radius):
     trunk.name = "BirchTrunk"
     trunk.data.materials.clear()
     trunk.data.materials.append(create_material("BirchBark", (0.78, 0.75, 0.68), 0.8, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(trunk)
+    link_object_to_collection(trunk, TREE_COLLECTION)
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=foliage_radius, location=(location[0], location[1], location[2] + trunk_height + foliage_radius * 0.6))
     sphere = bpy.context.object
     sphere.data.materials.clear()
     sphere.data.materials.append(create_material("BirchFoliage", (0.20, 0.52, 0.18), 0.7, 0.0))
-    get_or_create_collection(TREE_COLLECTION).objects.link(sphere)
+    link_object_to_collection(sphere, TREE_COLLECTION)
 
     return trunk
 
@@ -544,7 +548,7 @@ def create_sky_dome():
     obj = bpy.context.object
     obj.name = "ForestSky"
     assign_material(obj, get_sky_material())
-    get_or_create_collection(COLLECTION_NAME).objects.link(obj)
+    link_object_to_collection(obj, COLLECTION_NAME)
     return obj
 
 
@@ -554,7 +558,7 @@ def create_lighting():
     sun.name = "ForestSun"
     sun.data.energy = 2.0
     sun.data.angle = math.radians(3)
-    get_or_create_collection(LIGHTING_COLLECTION).objects.link(sun)
+    link_object_to_collection(sun, LIGHTING_COLLECTION)
 
     bpy.ops.object.light_add(type='AREA', location=(0, 0, 25))
     area = bpy.context.object
@@ -563,7 +567,7 @@ def create_lighting():
     area.data.shape = 'RECTANGLE'
     area.data.size = 40
     area.data.size_y = 40
-    get_or_create_collection(LIGHTING_COLLECTION).objects.link(area)
+    link_object_to_collection(area, LIGHTING_COLLECTION)
 
     return sun, area
 
@@ -577,7 +581,7 @@ def create_marker(name, location, radius, material):
     obj = bpy.context.object
     obj.name = name
     assign_material(obj, material)
-    get_or_create_collection(COLLECTION_NAME).objects.link(obj)
+    link_object_to_collection(obj, COLLECTION_NAME)
     return obj
 
 
@@ -678,17 +682,19 @@ class FORESTADVANCED_OT_generate(bpy.types.Operator):
     bl_idname = "forestadvanced.generate"
     bl_label = "Generate Forest Maze"
     bl_description = "Generate a forest maze with collision, fog, and multiple tree types"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         generate_forest_maze(context.scene)
-        self.report({"INFO"}, "Forest maze generated")
+        self.report({"INFO"}, "Forest maze generated successfully!")
         return {"FINISHED"}
 
 
 class FORESTADVANCED_OT_clear(bpy.types.Operator):
     bl_idname = "forestadvanced.clear"
     bl_label = "Clear Forest Maze"
-    bl_description = "Remove generated maze geometry"
+    bl_description = "Remove all generated maze geometry"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         clear_generated_objects()
@@ -712,7 +718,7 @@ class FORESTADVANCED_PT_panel(bpy.types.Panel):
         scene = context.scene
 
         box = layout.box()
-        box.label(text="Maze", icon="GRID")
+        box.label(text="Maze Settings", icon="GRID")
         box.prop(scene, "forest_advanced_width")
         box.prop(scene, "forest_advanced_height")
         box.prop(scene, "forest_advanced_seed")
@@ -728,12 +734,6 @@ class FORESTADVANCED_PT_panel(bpy.types.Panel):
             box.prop(scene, "forest_advanced_room_max_size")
 
         box = layout.box()
-        box.label(text="Environment", icon="WORLD_DATA")
-        box.prop(scene, "forest_advanced_create_lighting")
-        box.prop(scene, "forest_advanced_create_sky")
-        box.prop(scene, "forest_advanced_create_markers")
-
-        box = layout.box()
         box.label(text="Collision & Fog", icon="PHYSICS")
         box.prop(scene, "forest_advanced_create_collision")
         box.prop(scene, "forest_advanced_create_fog")
@@ -741,7 +741,7 @@ class FORESTADVANCED_PT_panel(bpy.types.Panel):
             box.prop(scene, "forest_advanced_fog_density")
 
         box = layout.box()
-        box.label(text="Forest Variants", icon="OUTLINER_OB_TREE")
+        box.label(text="Forest", icon="WORLD_DATA")
         box.prop(scene, "forest_advanced_create_trees")
         if scene.forest_advanced_create_trees:
             box.prop(scene, "forest_advanced_tree_density")
@@ -749,10 +749,16 @@ class FORESTADVANCED_PT_panel(bpy.types.Panel):
             box.prop(scene, "forest_advanced_tree_max_height")
             box.prop(scene, "forest_advanced_tree_variants")
 
+        box = layout.box()
+        box.label(text="Environment", icon="OUTLINER_OB_LIGHT")
+        box.prop(scene, "forest_advanced_create_lighting")
+        box.prop(scene, "forest_advanced_create_sky")
+        box.prop(scene, "forest_advanced_create_markers")
+
         layout.separator()
         row = layout.row()
-        row.scale_y = 1.5
-        row.operator("forestadvanced.generate", icon="PLAY")
+        row.scale_y = 1.8
+        row.operator("forestadvanced.generate", icon="PLAY", text="Generate Forest Maze")
 
         row = layout.row()
         row.operator("forestadvanced.clear", icon="TRASH")
@@ -786,11 +792,6 @@ def register():
     bpy.types.Scene.forest_advanced_room_min_size = bpy.props.IntProperty(name="Room Min Size", default=1, min=1, max=8)
     bpy.types.Scene.forest_advanced_room_max_size = bpy.props.IntProperty(name="Room Max Size", default=4, min=2, max=12)
 
-    # Environment
-    bpy.types.Scene.forest_advanced_create_lighting = bpy.props.BoolProperty(name="Create Lighting", default=True)
-    bpy.types.Scene.forest_advanced_create_sky = bpy.props.BoolProperty(name="Create Sky", default=True)
-    bpy.types.Scene.forest_advanced_create_markers = bpy.props.BoolProperty(name="Create Spawn / Exit", default=True)
-
     # Collision / Fog
     bpy.types.Scene.forest_advanced_create_collision = bpy.props.BoolProperty(name="Create Collision Mesh", default=True)
     bpy.types.Scene.forest_advanced_create_fog = bpy.props.BoolProperty(name="Create Fog Volume", default=True)
@@ -803,6 +804,11 @@ def register():
     bpy.types.Scene.forest_advanced_tree_max_height = bpy.props.FloatProperty(name="Tree Max Height", default=12.0, min=2.0, max=30.0)
     bpy.types.Scene.forest_advanced_tree_variants = bpy.props.BoolProperty(name="Use Tree Variants", default=True)
 
+    # Environment
+    bpy.types.Scene.forest_advanced_create_lighting = bpy.props.BoolProperty(name="Create Lighting", default=True)
+    bpy.types.Scene.forest_advanced_create_sky = bpy.props.BoolProperty(name="Create Sky", default=True)
+    bpy.types.Scene.forest_advanced_create_markers = bpy.props.BoolProperty(name="Create Spawn / Exit", default=True)
+
 
 def unregister():
     for cls in reversed(classes):
@@ -813,12 +819,12 @@ def unregister():
         "forest_advanced_cell_size", "forest_advanced_wall_height",
         "forest_advanced_use_rooms", "forest_advanced_room_density",
         "forest_advanced_room_min_size", "forest_advanced_room_max_size",
+        "forest_advanced_create_collision", "forest_advanced_create_fog",
+        "forest_advanced_fog_density", "forest_advanced_create_trees",
+        "forest_advanced_tree_density", "forest_advanced_tree_min_height",
+        "forest_advanced_tree_max_height", "forest_advanced_tree_variants",
         "forest_advanced_create_lighting", "forest_advanced_create_sky",
-        "forest_advanced_create_markers", "forest_advanced_create_collision",
-        "forest_advanced_create_fog", "forest_advanced_fog_density",
-        "forest_advanced_create_trees", "forest_advanced_tree_density",
-        "forest_advanced_tree_min_height", "forest_advanced_tree_max_height",
-        "forest_advanced_tree_variants",
+        "forest_advanced_create_markers",
     ]
     for prop in props:
         if hasattr(bpy.types.Scene, prop):
